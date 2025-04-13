@@ -304,7 +304,9 @@ if stock:
                         ))
                         matching_pred_indices = []
                         for i, date in enumerate(prediction_dates):
-                            naive_date = date.replace(tzinfo=None)
+                            # Convert prediction date to naive
+                            naive_date = date.tz_localize(None) if date.tzinfo else date
+                            # Convert DataFrame index to naive
                             df_naive_index = df.index.tz_localize(None)
                             if naive_date in df_naive_index:
                                 matching_pred_indices.append(i)
@@ -334,7 +336,11 @@ if stock:
                             name='Actual Price',
                             line=dict(color='blue', width=2)
                         ))
-                        future_indices = [i for i, date in enumerate(prediction_dates) if date > df.index[-1]]
+                        # Convert timestamps to naive for comparison
+                        future_indices = [
+                            i for i, date in enumerate(prediction_dates)
+                            if date.tz_localize(None) > df.index[-1].tz_localize(None)
+                        ]
                         future_dates = prediction_dates[future_indices]
                         future_prices = [predicted_prices[i] for i in future_indices]
                         fig_future.add_trace(go.Scatter(
