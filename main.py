@@ -302,27 +302,32 @@ if stock:
                 
                 try:
                     # Get predictions from Cloud API
-                    prediction_data = get_predictions(stock, 180)  # Request 180 days of predictions
-                    
-                    if prediction_data and 'dates' in prediction_data and 'prices' in prediction_data:
-                        # Extract prediction data
+                      prediction_data = get_predictions(stock, 180)  # Request 180 days of predictions
+
+                      if prediction_data and 'dates' in prediction_data and 'prices' in prediction_data:
+                      # Extract prediction data
                         prediction_dates = pd.to_datetime(prediction_data['dates'])
                         predicted_prices = prediction_data['prices']
-                        
-                        # Section 1: Current Predictions vs Actual
-                        fig_pred = go.Figure()
-                        fig_pred.add_trace(go.Scatter(
-                            x=df.index[-180:],
-                            y=df['Close'].values[-180:],
-                            name='Actual Price',
-                            line=dict(color='blue', width=2)
-                        ))
-                        
-                        # Find matching date range in predictions if available
-                        matching_pred_indices = []
-                        for i, date in enumerate(prediction_dates):
-                            if date in df.index:
-                                matching_pred_indices.append(i)
+    
+                   # Section 1: Current Predictions vs Actual
+                     fig_pred = go.Figure()
+                    fig_pred.add_trace(go.Scatter(
+                     x=df.index[-180:],
+        y=df['Close'].values[-180:],
+        name='Actual Price',
+        line=dict(color='blue', width=2)
+    ))
+    
+    # Find matching date range in predictions if available
+    matching_pred_indices = []
+    for i, date in enumerate(prediction_dates):
+        # Convert both timestamps to naive or convert both to aware
+        # Option 1: Convert both to naive (removing timezone info)
+        naive_date = date.replace(tzinfo=None)
+        df_naive_index = df.index.tz_localize(None)
+        
+        if naive_date in df_naive_index:
+            matching_pred_indices.append(i)
                                 
                         if matching_pred_indices:
                             matching_dates = prediction_dates[matching_pred_indices]
