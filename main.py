@@ -64,6 +64,30 @@ def search_company(query):
         st.error(f"Error searching for company: {str(e)}")
         return []
 
+# Function to get currency symbol based on the stock exchange or symbol
+def get_currency_symbol(ticker_obj, stock_symbol):
+    try:
+        # Try to get currency from ticker info
+        info = ticker_obj.info
+        currency = info.get('currency', 'USD')
+        
+        # Check if it's an Indian stock (NSE or BSE)
+        if '.NS' in stock_symbol or '.BO' in stock_symbol or currency == 'INR':
+            return '₹', 'INR'
+        elif currency == 'USD':
+            return '$', 'USD'
+        elif currency == 'EUR':
+            return '€', 'EUR'
+        elif currency == 'GBP':
+            return '£', 'GBP'
+        elif currency == 'JPY':
+            return '¥', 'JPY'
+        else:
+            return '$', currency  # Default to $ but use the actual currency code
+    except:
+        # Default to USD if we can't determine
+        return '$', 'USD'
+
 # Function to get predictions from cloud API
 def get_predictions(ticker, days=30):
     try:
@@ -79,20 +103,47 @@ def get_predictions(ticker, days=30):
             
         if response.status_code == 200:
             data = response.json()
-            # For debugging, show raw response
-            st.write("API Response:", data)
             
-            # Extract predictions from the response
+            # Check if 'predictions' key exists in the response
             if 'predictions' in data:
                 predictions_data = data['predictions']
-                dates = [pred['date'] for pred in predictions_data]
-                prices = [pred['price'] for pred in predictions_data]
-                return {
-                    'dates': dates,
-                    'prices': prices
-                }
+                
+                # Verify format of predictions data
+                if isinstance(predictions_data, list) and len(predictions_data) > 0:
+                    # Handle predictions in expected format with date and price keys
+                    if 'date' in predictions_data[0] and 'price' in predictions_data[0]:
+                        dates = [pred['date'] for pred in predictions_data]
+                        prices = [pred['price'] for pred in predictions_data]
+                    # Handle alternative format (array of arrays)
+                    elif isinstance(predictions_data[0], list) and len(predictions_data[0]) >= 2:
+                        dates = [pred[0] for pred in predictions_data]
+                        prices = [pred[1] for pred in predictions_data]
+                    else:
+                        st.error("Unexpected prediction data format. Please check API response.")
+                        st.json(data)
+                        return None
+                    
+                    return {
+                        'dates': dates,
+                        'prices': prices
+                    }
+                else:
+                    st.error("Empty predictions data received from API")
+                    st.json(data)
+                    return None
             else:
+                # Alternative format check - direct array in response
+                if isinstance(data, list) and len(data) > 0:
+                    if isinstance(data[0], dict) and 'date' in data[0] and 'price' in data[0]:
+                        dates = [pred['date'] for pred in data]
+                        prices = [pred['price'] for pred in data]
+                        return {
+                            'dates': dates,
+                            'prices': prices
+                        }
+                
                 st.error("Unexpected API response format")
+                st.json(data)
                 return None
         else:
             st.error(f"Error from prediction API: {response.status_code} - {response.text}")
@@ -108,8 +159,8 @@ with st.container():
     with col1:
         company_query = st.text_input(
             'Enter Company Name or Ticker',
-            'Apple',
-            help='Enter the company name (e.g., Apple) or stock symbol (e.g., AAPL)'
+            'Reliance',
+            help='Enter the company name (e.g., Reliance) or stock symbol (e.g., RELIANCE.NS)'
         )
     
     with col2:
@@ -151,6 +202,9 @@ if stock:
         else:
             info = ticker.info
             
+            # Determine currency symbol and code
+            currency_symbol, currency_code = get_currency_symbol(ticker, stock)
+            
             # Display key metrics
             st.markdown('<h2 class="subtitle">Key Metrics</h2>', unsafe_allow_html=True)
             metrics_col1, metrics_col2, metrics_col3, metrics_col4 = st.columns(4)
@@ -160,14 +214,19 @@ if stock:
                 prev_close = info.get('previousClose', df['Close'].iloc[-2] if len(df) > 1 else None)
                 if current_price and prev_close:
                     price_change = ((current_price - prev_close) / prev_close * 100)
-                    st.metric("Current Price", f"${current_price:,.2f}", f"{price_change:.2f}%")
+                    st.metric("Current Price", f"{currency_symbol}{current_price:,.2f}", f"{price_change:.2f}%")
                 else:
-                    st.metric("Current Price", f"${df['Close'].iloc[-1]:,.2f}", None)
+                    st.metric("Current Price", f"{currency_symbol}{df['Close'].iloc[-1]:,.2f}", None)
             
             with metrics_col2:
                 market_cap = info.get('marketCap')
                 if market_cap:
-                    st.metric("Market Cap", f"${(market_cap / 1e9):,.2f}B", None)
+                    # Format market cap based on size
+                    if market_cap >= 1e9:
+                        market_cap_str = f"{currency_symbol}{(market_cap / 1e9):,.2f}B"
+                    else:
+                        market_cap_str = f"{currency_symbol}{(market_cap / 1e6):,.2f}M"
+                    st.metric("Market Cap", market_cap_str, None)
                 else:
                     st.metric("Market Cap", "N/A", None)
             
@@ -203,7 +262,7 @@ if stock:
                         cols=1,
                         row_heights=[0.7, 0.3],
                         vertical_spacing=0.08,
-                        subplot_titles=('Stock Price: Historical & Prediction', 'Trading Volume')
+                        subplot_titles=(f'Stock Price: Historical & Prediction ({currency_code})', 'Trading Volume')
                     )
                     
                     # Add historical price trace
@@ -246,7 +305,7 @@ if stock:
                         hovermode='x unified',
                         template='plotly_white',
                         xaxis2_title='Date',
-                        yaxis_title='Price (USD)',
+                        yaxis_title=f'Price ({currency_code})',
                         yaxis2_title='Volume',
                         legend=dict(
                             orientation="h",
@@ -266,24 +325,57 @@ if stock:
                     
                     with summary_col1:
                         last_price = df['Close'].iloc[-1]
-                        st.metric("Current Price", f"${last_price:.2f}")
+                        st.metric("Current Price", f"{currency_symbol}{last_price:.2f}")
                     
                     with summary_col2:
                         final_prediction = predicted_prices[-1]
-                        st.metric("Final Predicted Price", f"${final_prediction:.2f}")
+                        st.metric("Final Predicted Price", f"{currency_symbol}{final_prediction:.2f}")
                     
                     with summary_col3:
                         price_change = ((final_prediction - last_price) / last_price) * 100
                         st.metric("Predicted Change", f"{price_change:.2f}%", 
                                 delta_color="normal" if price_change >= 0 else "inverse")
                     
-                    # Display prediction data in a table
-                    with st.expander("View Detailed Predictions"):
-                        prediction_df = pd.DataFrame({
-                            'Date': prediction_dates,
-                            'Predicted Price': predicted_prices
-                        })
-                        st.dataframe(prediction_df, use_container_width=True)
+                    # Display prediction data in a table with improved formatting
+                    st.markdown('<h3 class="subtitle">Detailed Predictions</h3>', unsafe_allow_html=True)
+                    
+                    # Create a DataFrame with formatted data
+                    prediction_df = pd.DataFrame({
+                        'Date': pd.to_datetime(prediction_dates),
+                        'Predicted Price': predicted_prices
+                    })
+                    
+                    # Format the DataFrame for display
+                    prediction_df['Date'] = prediction_df['Date'].dt.strftime('%Y-%m-%d')
+                    prediction_df['Predicted Price'] = prediction_df['Predicted Price'].apply(
+                        lambda x: f"{currency_symbol}{x:,.2f}"
+                    )
+                    
+                    # Add a column for day of week to make the table more informative
+                    prediction_df['Day of Week'] = pd.to_datetime(prediction_dates).day_name()
+                    
+                    # Reorder columns
+                    prediction_df = prediction_df[['Date', 'Day of Week', 'Predicted Price']]
+                    
+                    # Display the formatted table
+                    st.dataframe(
+                        prediction_df,
+                        use_container_width=True,
+                        column_config={
+                            "Date": st.column_config.DateColumn("Date", format="%Y-%m-%d"),
+                            "Day of Week": st.column_config.TextColumn("Day"),
+                            "Predicted Price": st.column_config.TextColumn(f"Price ({currency_code})")
+                        }
+                    )
+                    
+                    # Add option to download predictions as CSV
+                    csv = prediction_df.to_csv(index=False)
+                    st.download_button(
+                        label="Download Predictions as CSV",
+                        data=csv,
+                        file_name=f"{stock}_predictions.csv",
+                        mime="text/csv",
+                    )
                     
                     # Add disclaimer
                     st.info("""
@@ -311,6 +403,8 @@ if stock:
                         st.write("**Industry:**", info.get('industry', 'N/A'))
                         st.write("**Sector:**", info.get('sector', 'N/A'))
                         st.write("**Country:**", info.get('country', 'N/A'))
+                        st.write("**Exchange:**", info.get('exchange', 'N/A'))
+                        st.write("**Currency:**", info.get('currency', 'N/A'))
                     
                     with company_info_cols[1]:
                         st.write("**Website:**", info.get('website', 'N/A'))
@@ -319,6 +413,7 @@ if stock:
     
     except Exception as e:
         st.error(f"Error processing data: {str(e)}")
+        st.exception(e)  # Show detailed error information for debugging
 else:
     st.info("Please enter a company name or stock symbol to begin.")
 
