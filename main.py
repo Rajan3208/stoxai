@@ -78,7 +78,22 @@ def get_predictions(ticker, days=30):
             response = requests.post(url, json=payload, headers=headers)
             
         if response.status_code == 200:
-            return response.json()
+            data = response.json()
+            # For debugging, show raw response
+            st.write("API Response:", data)
+            
+            # Extract predictions from the response
+            if 'predictions' in data:
+                predictions_data = data['predictions']
+                dates = [pred['date'] for pred in predictions_data]
+                prices = [pred['price'] for pred in predictions_data]
+                return {
+                    'dates': dates,
+                    'prices': prices
+                }
+            else:
+                st.error("Unexpected API response format")
+                return None
         else:
             st.error(f"Error from prediction API: {response.status_code} - {response.text}")
             return None
@@ -173,10 +188,10 @@ if stock:
             # Get predictions from API
             prediction_data = get_predictions(stock, prediction_days)
             
-            if prediction_data:
-                # Extract data from API response
-                predicted_prices = prediction_data.get('predictions', [])
-                dates = prediction_data.get('dates', [])
+            if prediction_data and 'dates' in prediction_data and 'prices' in prediction_data:
+                # Extract data
+                dates = prediction_data['dates']
+                predicted_prices = prediction_data['prices']
                 
                 if predicted_prices and dates:
                     # Historical and Prediction Chart
@@ -279,6 +294,8 @@ if stock:
                 
                 else:
                     st.error("No prediction data available from the API.")
+            else:
+                st.error("Failed to get predictions from the API.")
             
             # Company info section
             with st.expander("Company Information"):
