@@ -36,7 +36,6 @@ def search_company(query):
         st.error(f"Error searching for company: {str(e)}")
         return []
 
-# Function to get predictions from cloud API
 def get_predictions(ticker, days=180):
     try:
         url = 'https://bullseye-price-predictor-281769648388.us-central1.run.app/predict'
@@ -52,17 +51,13 @@ def get_predictions(ticker, days=180):
         if response.status_code == 200:
             data = response.json()
             
-            # Check if 'predictions' key exists in the response
             if 'predictions' in data:
                 predictions_data = data['predictions']
                 
-                # Verify format of predictions data
                 if isinstance(predictions_data, list) and len(predictions_data) > 0:
-                    # Handle predictions in expected format with date and price keys
                     if 'date' in predictions_data[0] and 'price' in predictions_data[0]:
                         dates = [pred['date'] for pred in predictions_data]
                         prices = [pred['price'] for pred in predictions_data]
-                    # Handle alternative format (array of arrays)
                     elif isinstance(predictions_data[0], list) and len(predictions_data[0]) >= 2:
                         dates = [pred[0] for pred in predictions_data]
                         prices = [pred[1] for pred in predictions_data]
@@ -80,7 +75,6 @@ def get_predictions(ticker, days=180):
                     st.json(data)
                     return None
             else:
-                # Alternative format check - direct array in response
                 if isinstance(data, list) and len(data) > 0:
                     if isinstance(data[0], dict) and 'date' in data[0] and 'price' in data[0]:
                         dates = [pred['date'] for pred in data]
@@ -130,6 +124,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 st.markdown('<h1 class="stTitle">StoX</h1>', unsafe_allow_html=True)
 st.markdown('<p style="font-size: 1.5rem; color: #666;">AI-based Stock Analysis & Prediction</p>', unsafe_allow_html=True)
+
 with st.container():
     col1, col2, col3 = st.columns([2,6,2])
     with col2:
@@ -152,6 +147,7 @@ with st.container():
                 stock = selected_option.split('(')[1].split(')')[0].split(' - ')[0].strip()
             else:
                 st.warning("No companies found. Please try a different search term.")
+
 if stock:
     try:
         ticker = yf.Ticker(stock)
@@ -162,7 +158,6 @@ if stock:
             st.error(f"No data available for {stock}")
         else:
             info = ticker.info
-            # Display metrics only if I have valid data by the way I have valid data and Remember to Re-Train model
             if info:
                 st.markdown('<h2 class="stSubheader">Key Metrics</h2>', unsafe_allow_html=True)
                 metrics_col1, metrics_col2, metrics_col3, metrics_col4 = st.columns(4)   
@@ -216,7 +211,6 @@ if stock:
                         st.write(f"P/E Ratio (TTM): {ticker.info.get('trailingPE', 'N/A'):.2f}")
                         st.write(f"Forward P/E: {ticker.info.get('forwardPE', 'N/A'):.2f}")
                         st.write(f"Price-to-Book Ratio: {ticker.info.get('priceToBook', 'N/A'):.2f}")
-            # Technical Analysis Section
             st.markdown('<h2 class="stSubheader">Technical Analysis</h2>', unsafe_allow_html=True)
             time_periods = {
                 "1 Month": 30,
@@ -272,7 +266,6 @@ if stock:
                         ),
                         row=2, col=1
                     )
-                # volume bars
                 fig.add_trace(
                     go.Bar(
                         x=df_period.index,
@@ -293,53 +286,37 @@ if stock:
                     showlegend=True
                 )
                 fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128, 128, 128, 0.2)')
-                
                 st.plotly_chart(fig, use_container_width=True)
                 
-            # AI Predictions Section
-            if len(df) >= 100:  # Only show predictions if we have enough data
+            if len(df) >= 100:
                 st.markdown('<h2 class="stSubheader">AI Price Predictions</h2>', unsafe_allow_html=True)
-                
                 try:
-                    # Get predictions from Cloud API
-                      prediction_data = get_predictions(stock, 180)  # Request 180 days of predictions
-
-                      if prediction_data and 'dates' in prediction_data and 'prices' in prediction_data:
-                      # Extract prediction data
+                    prediction_data = get_predictions(stock, 180)
+                    if prediction_data and 'dates' in prediction_data and 'prices' in prediction_data:
                         prediction_dates = pd.to_datetime(prediction_data['dates'])
                         predicted_prices = prediction_data['prices']
-    
-                   # Section 1: Current Predictions vs Actual
-                     fig_pred = go.Figure()
-                    fig_pred.add_trace(go.Scatter(
-                     x=df.index[-180:],
-        y=df['Close'].values[-180:],
-        name='Actual Price',
-        line=dict(color='blue', width=2)
-    ))
-    
-    # Find matching date range in predictions if available
-    matching_pred_indices = []
-    for i, date in enumerate(prediction_dates):
-        # Convert both timestamps to naive or convert both to aware
-        # Option 1: Convert both to naive (removing timezone info)
-        naive_date = date.replace(tzinfo=None)
-        df_naive_index = df.index.tz_localize(None)
-        
-        if naive_date in df_naive_index:
-            matching_pred_indices.append(i)
-                                
+                        fig_pred = go.Figure()
+                        fig_pred.add_trace(go.Scatter(
+                            x=df.index[-180:],
+                            y=df['Close'].values[-180:],
+                            name='Actual Price',
+                            line=dict(color='blue', width=2)
+                        ))
+                        matching_pred_indices = []
+                        for i, date in enumerate(prediction_dates):
+                            naive_date = date.replace(tzinfo=None)
+                            df_naive_index = df.index.tz_localize(None)
+                            if naive_date in df_naive_index:
+                                matching_pred_indices.append(i)
                         if matching_pred_indices:
                             matching_dates = prediction_dates[matching_pred_indices]
                             matching_prices = [predicted_prices[i] for i in matching_pred_indices]
-                            
                             fig_pred.add_trace(go.Scatter(
                                 x=matching_dates,
                                 y=matching_prices,
                                 name='Predicted Price (Historical)',
                                 line=dict(color='orange', width=2)
                             ))
-                        
                         fig_pred.update_layout(
                             title='AI Price Predictions vs Actual Prices',
                             xaxis_title='Date',
@@ -348,13 +325,8 @@ if stock:
                             height=400
                         ) 
                         st.plotly_chart(fig_pred, use_container_width=True)
-                        
-                        # Section 2: Future Predictions with Volatility
-                        # Calculate historical volatility
                         historical_returns = np.log(df['Close'] / df['Close'].shift(1))
                         volatility = historical_returns.std() * np.sqrt(252)
-                        
-                        # Future prediction chart
                         fig_future = go.Figure()
                         fig_future.add_trace(go.Scatter(
                             x=df.index[-180:],
@@ -362,23 +334,17 @@ if stock:
                             name='Actual Price',
                             line=dict(color='blue', width=2)
                         ))
-                        
-                        # Get future dates from the prediction data
                         future_indices = [i for i, date in enumerate(prediction_dates) if date > df.index[-1]]
                         future_dates = prediction_dates[future_indices]
                         future_prices = [predicted_prices[i] for i in future_indices]
-                        
                         fig_future.add_trace(go.Scatter(
                             x=future_dates,
                             y=future_prices,
                             name='Predicted Price (Next 6 Months)',
                             line=dict(color='red', width=2, dash='dash')
                         ))
-                        
-                        # Calculate confidence intervals
                         upper_bound = [price * (1 + volatility) for price in future_prices]
                         lower_bound = [price * (1 - volatility) for price in future_prices]
-                        
                         fig_future.add_trace(go.Scatter(
                             x=future_dates,
                             y=upper_bound,
@@ -387,7 +353,6 @@ if stock:
                             line=dict(color='rgba(255,0,0,0)'),
                             showlegend=False
                         ))
-                        
                         fig_future.add_trace(go.Scatter(
                             x=future_dates,
                             y=lower_bound,
@@ -397,7 +362,6 @@ if stock:
                             name='Confidence Interval',
                             fillcolor='rgba(255,0,0,0.1)'
                         ))
-                        
                         fig_future.update_layout(
                             title='AI Price Predictions with Confidence Intervals',
                             xaxis_title='Date',
@@ -413,12 +377,9 @@ if stock:
                             )
                         )
                         st.plotly_chart(fig_future, use_container_width=True)
-                        
-                        # Add prediction insights
                         current_price = df['Close'].iloc[-1]
                         final_pred_price = future_prices[-1] if future_prices else 0
                         price_change = ((final_pred_price - current_price) / current_price) * 100
-                        
                         st.write("### Prediction Insights")
                         col1, col2, col3 = st.columns(3)
                         with col1:
@@ -433,7 +394,6 @@ if stock:
                 except Exception as e:
                     st.error(f"Error processing data for predictions: {str(e)}")
                     
-            # PDF Export Function
             def create_stock_report_pdf():
                 buffer = io.BytesIO()
                 doc = SimpleDocTemplate(buffer, pagesize=letter)
@@ -467,7 +427,7 @@ if stock:
                     ["Float Shares", f"{(ticker.info.get('floatShares', 0) / 1e9):.2f} billion shares"],
                     ["EPS (TTM)", f"{ticker.info.get('trailingEps', 'N/A')}"],
                     ["Forward EPS", f"{ticker.info.get('forwardEps', 'N/A')}"],
-                    ["P/E Ratio (TTM)", f"{ticker.info.get('trailingPE', 'N/A'):.2f}"],
+                    ["P/E Ratio (TTM)", f"{ticker.info.get('trailing Derbyshire', 'N/A'):.2f}"],
                     ["Forward P/E", f"{ticker.info.get('forwardPE', 'N/A'):.2f}"],
                     ["Price-to-Book Ratio", f"{ticker.info.get('priceToBook', 'N/A'):.2f}"]
                 ]
@@ -487,7 +447,6 @@ if stock:
                 ]))
                 elements.append(table)
                 elements.append(Spacer(1, 20))
-                # Here I add AI Predictions section to the PDF if available
                 if 'final_pred_price' in locals():
                     elements.append(Paragraph("AI Predictions", styles['Heading2']))
                     predictions_data = [
@@ -512,14 +471,12 @@ if stock:
                         ('GRID', (0, 0), (-1, -1), 1, colors.black)
                     ]))
                     elements.append(pred_table)
-                # Add report generation timestamp
                 elements.append(Spacer(1, 30))
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 elements.append(Paragraph(f"Report generated on: {timestamp}", styles['Normal']))
                 doc.build(elements)
                 buffer.seek(0)
                 return buffer
-            # Add download button
             st.markdown('<h2 class="stSubheader">Export Report</h2>', unsafe_allow_html=True)
             pdf_buffer = create_stock_report_pdf()
             st.download_button(
@@ -534,7 +491,7 @@ if stock:
         st.error(f"Error processing data for {stock}: {str(e)}")
 else:
     st.info("Please enter a stock symbol to begin analysis.")
-# Detailed Information Section of Company
+
 st.title("📈 Detailed Information of Company")
 navigation = st.tabs(["Stock News", "About", "Contact"])
 with navigation[0]:
@@ -565,7 +522,6 @@ with navigation[0]:
     if st.button("Search News"):
         st.subheader(f"Latest News for '{query}'")
         articles = fetch_stock_news(query, API_KEY)
-        
         if articles:
             for article in articles:
                 st.write("### " + article["title"])
@@ -577,17 +533,12 @@ with navigation[0]:
         else:
             st.warning(f"No news found for '{query}'.")
 
-        
-
-# About Section
 with navigation[1]:
     if stock and info:
         st.subheader(f"About {info.get('longName', stock)}")   
-        # Company Description
         if info.get('longBusinessSummary'):
             st.write("### Business Summary")
             st.write(info['longBusinessSummary'])
-        # Key Company Information
         st.write("### Company Details")
         company_details = {
             "Industry": info.get('industry', 'N/A'),
@@ -597,14 +548,12 @@ with navigation[1]:
             "State": info.get('state', 'N/A'),
             "City": info.get('city', 'N/A'),
         } 
-        # Company details in two columns
         col1, col2 = st.columns(2)
         for i, (key, value) in enumerate(company_details.items()):
             if i % 2 == 0:
                 col1.write(f"*{key}:* {value}")
             else:
                 col2.write(f"*{key}:* {value}")
-        # Financial Information
         st.write("### Financial Overview")
         financial_metrics = {
             "Revenue Growth": f"{info.get('revenueGrowth', 'N/A')*100:.2f}%" if info.get('revenueGrowth') else 'N/A',
@@ -612,7 +561,6 @@ with navigation[1]:
             "Operating Margins": f"{info.get('operatingMargins', 'N/A')*100:.2f}%" if info.get('operatingMargins') else 'N/A',
             "Profit Margins": f"{info.get('profitMargins', 'N/A')*100:.2f}%" if info.get('profitMargins') else 'N/A',
         }
-        # Financial metrics in two columns
         col1, col2 = st.columns(2)
         for i, (key, value) in enumerate(financial_metrics.items()):
             if i % 2 == 0:
@@ -621,7 +569,7 @@ with navigation[1]:
                 col2.write(f"*{key}:* {value}")
     else:
         st.info("Please select a company to view detailed information.")
-# Contact Section
+
 with navigation[2]:
     if stock and info:
         st.subheader(f"Contact Information for {info.get('longName', stock)}")
@@ -638,7 +586,7 @@ with navigation[2]:
                     st.write(f"*{key}:* {value}")
     else:
         st.info("Please select a company to view contact information.")
-# Footer
+
 st.markdown(
     """
     ---
