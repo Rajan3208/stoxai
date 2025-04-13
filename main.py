@@ -571,6 +571,9 @@ with navigation[0]:
                 st.write("---")
         else:
             st.warning(f"No news found for '{query}'.")
+
+        
+
 # About Section
 with navigation[1]:
     if stock and info:
@@ -598,7 +601,7 @@ with navigation[1]:
                 col2.write(f"*{key}:* {value}")
         # Financial Information
         st.write("### Financial Overview")
-                financial_metrics = {
+        financial_metrics = {
             "Revenue Growth": f"{info.get('revenueGrowth', 'N/A')*100:.2f}%" if info.get('revenueGrowth') else 'N/A',
             "Gross Margins": f"{info.get('grossMargins', 'N/A')*100:.2f}%" if info.get('grossMargins') else 'N/A',
             "Operating Margins": f"{info.get('operatingMargins', 'N/A')*100:.2f}%" if info.get('operatingMargins') else 'N/A',
