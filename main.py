@@ -208,9 +208,9 @@ if stock:
                         st.write(f"Float Shares: {(ticker.info.get('floatShares', 0) / 1e9):.2f} billion shares")
                         st.write(f"EPS (TTM): {ticker.info.get('trailingEps', 'N/A')}")
                         st.write(f"Forward EPS: {ticker.info.get('forwardEps', 'N/A')}")
-                        st.write(f"P/E Ratio (TTM): {ticker.info.get('trailingPE', 'N/A'):.2f}")
-                        st.write(f"Forward P/E: {ticker.info.get('forwardPE', 'N/A'):.2f}")
-                        st.write(f"Price-to-Book Ratio: {ticker.info.get('priceToBook', 'N/A'):.2f}")
+                        st.write(f"P/E Ratio (TTM): {ticker.info.get('trailingPE', 'N/A')}")
+                        st.write(f"Forward P/E: {ticker.info.get('forwardPE', 'N/A')}")
+                        st.write(f"Price-to-Book Ratio: {ticker.info.get('priceToBook', 'N/A')}")
             st.markdown('<h2 class="stSubheader">Technical Analysis</h2>', unsafe_allow_html=True)
             time_periods = {
                 "1 Month": 30,
@@ -412,24 +412,24 @@ if stock:
                     ["Metric", "Value"],
                     ["Stock Name", info.get('longName', stock)],
                     ["Stock Code", stock],
-                    ["Current Price", f"{ticker.info.get('currentPrice', 'N/A')} "],
-                    ["Previous Close", f"{ticker.info.get('previousClose', 'N/A')} "],
+                    ["Current Price", f"{ticker.info.get('currentPrice', 'N/A')}"],
+                    ["Previous Close", f"{ticker.info.get('previousClose', 'N/A')}"],
                     ["Quote Change", f"{((ticker.info.get('currentPrice', 0) - ticker.info.get('previousClose', 0)) / ticker.info.get('previousClose', 1) * 100):.2f}%"],
-                    ["52-Week High", f"{ticker.info.get('fiftyTwoWeekHigh', 'N/A')} "],
-                    ["52-Week Low", f"{ticker.info.get('fiftyTwoWeekLow', 'N/A')} "],
+                    ["52-Week High", f"{ticker.info.get('fiftyTwoWeekHigh', 'N/A')}"],
+                    ["52-Week Low", f"{ticker.info.get('fiftyTwoWeekLow', 'N/A')}"],
                     ["Open Price", f"{ticker.info.get('open', 'N/A')} USD"],
                     ["Day High", f"{ticker.info.get('dayHigh', 'N/A')} USD"],
                     ["Day Low", f"{ticker.info.get('dayLow', 'N/A')} USD"],
                     ["Trading Volume", f"{ticker.info.get('volume', 'N/A'):,} shares"],
-                    ["Trading Value", f"{(ticker.info.get('volume', 0) * ticker.info.get('currentPrice', 0) / 1e9):.2f} billion "],
-                    ["Market Cap", f"{(ticker.info.get('marketCap', 0) / 1e9):.2f} billion "],
+                    ["Trading Value", f"{(ticker.info.get('volume', 0) * ticker.info.get('currentPrice', 0) / 1e9):.2f} billion"],
+                    ["Market Cap", f"{(ticker.info.get('marketCap', 0) / 1e9):.2f} billion"],
                     ["Shares Outstanding", f"{(ticker.info.get('sharesOutstanding', 0) / 1e9):.2f} billion shares"],
                     ["Float Shares", f"{(ticker.info.get('floatShares', 0) / 1e9):.2f} billion shares"],
                     ["EPS (TTM)", f"{ticker.info.get('trailingEps', 'N/A')}"],
                     ["Forward EPS", f"{ticker.info.get('forwardEps', 'N/A')}"],
-                    ["P/E Ratio (TTM)", f"{ticker.info.get('trailing Derbyshire', 'N/A'):.2f}"],
-                    ["Forward P/E", f"{ticker.info.get('forwardPE', 'N/A'):.2f}"],
-                    ["Price-to-Book Ratio", f"{ticker.info.get('priceToBook', 'N/A'):.2f}"]
+                    ["P/E Ratio (TTM)", f"{ticker.info.get('trailingPE', 'N/A'):.2f}" if isinstance(ticker.info.get('trailingPE'), (int, float)) else ticker.info.get('trailingPE', 'N/A')],
+                    ["Forward P/E", f"{ticker.info.get('forwardPE', 'N/A'):.2f}" if isinstance(ticker.info.get('forwardPE'), (int, float)) else ticker.info.get('forwardPE', 'N/A')],
+                    ["Price-to-Book Ratio", f"{ticker.info.get('priceToBook', 'N/A'):.2f}" if isinstance(ticker.info.get('priceToBook'), (int, float)) else ticker.info.get('priceToBook', 'N/A')]
                 ]
                 table = Table(metrics_data)
                 table.setStyle(TableStyle([
